@@ -18,6 +18,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goodeva.blescannertracker.domain.model.BleDevice
 import com.goodeva.blescannertracker.ui.util.findActivity
 import com.goodeva.blescannertracker.ui.util.hasBleScanPermission
+import kotlin.math.roundToInt
 
 @Composable
 fun ScannerScreen(
@@ -49,6 +52,7 @@ fun ScannerScreen(
     val context = LocalContext.current
     val bluetoothOn by viewModel.isBluetoothEnabled.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val filter by viewModel.filter.collectAsStateWithLifecycle()
 
     // Hentikan scan saat App ke background agar menghemat baterai dan mengikuti "App Lifecycle"
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
@@ -133,10 +137,13 @@ fun ScannerScreen(
 
             else -> ScanContent(
                 state = uiState,
+                filter = filter,
                 onStart = viewModel::startScan,
                 onStop = viewModel::stopScan,
                 onDeviceClick = onDeviceClick,
                 onDismissError = viewModel::dismissError,
+                onQueryChange = viewModel::onQueryChange,
+                onMinRssiChange = viewModel::onMinRssiChange
             )
         }
     }
@@ -145,10 +152,13 @@ fun ScannerScreen(
 @Composable
 private fun ScanContent(
     state: ScannerUiState,
+    filter: DeviceFilter,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onDeviceClick: (String) -> Unit,
-    onDismissError: () -> Unit
+    onDismissError: () -> Unit,
+    onQueryChange: (String) -> Unit,
+    onMinRssiChange: (Int) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -159,15 +169,43 @@ private fun ScanContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val counter = "${state.devices.size}/${state.totalCount}"
             Text(
-                if (state.isScanning) "Memindai... (${state.devices.size})"
-                else "Berhenti (${state.devices.size})"
+                if (state.isScanning) "Memindai... ($counter)"
+                else "Berhenti ($counter)"
             )
             if (state.isScanning) {
                 OutlinedButton(onClick = onStop) { Text("Stop") }
             } else {
                 Button(onClick = onStart) { Text("Start") }
             }
+        }
+
+        OutlinedTextField(
+            value = filter.query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Cari nama atau MAC") },
+            trailingIcon = {
+                if (filter.query.isNotEmpty()) {
+                    TextButton(onClick = { onQueryChange("") }) { Text("Hapus") }
+                }
+            },
+        )
+
+        Column {
+            Text(
+                text = if (filter.minRssi <= RSSI_FILTER_OFF) "Filter sinyal: semua"
+                else "Filter sinyal: ≥ ${filter.minRssi} dBm",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Slider(
+                value = filter.minRssi.toFloat(),
+                onValueChange = { onMinRssiChange(it.roundToInt()) },
+                valueRange = -100f..-30f,
+                steps = 13, // kelipatan 5 dBm
+            )
         }
 
         state.errorMessage?.let { message ->
@@ -184,67 +222,78 @@ private fun ScanContent(
             }
         }
 
-        if (state.devices.isEmpty()) {
-            Text(
-                if (state.isScanning) "Mencari perangkat..." else "Tekan Start untuk mulai memindai.",
-                style = MaterialTheme.typography.bodyMedium
+        when {
+            state.totalCount == 0 -> Text(
+                if (state.isScanning) "Mencari perangkat…" else "Tekan Start untuk mulai memindai.",
+                style = MaterialTheme.typography.bodyMedium,
             )
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(state.devices, key = { it.address }) {
-                    device -> DeviceItem(device = device, onClick = { onDeviceClick(device.address) })
 
+            state.devices.isEmpty() -> Text(
+                "Tidak ada perangkat yang cocok dengan filter.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(state.devices, key = { it.address }) { device ->
+                    DeviceItem(
+                        device = device,
+                        onClick = { onDeviceClick(device.address) },
+                        modifier = Modifier.animateItem(),
+                    )
                 }
             }
         }
     }
 }
-
-@Composable
-fun DeviceItem(
-    device: BleDevice,
-    onClick: () -> Unit
-) {
-   Card(
-       onClick = onClick,
-       modifier = Modifier.fillMaxWidth()
-   ) {
-       Row(
-           modifier = Modifier.padding(12.dp),
-           horizontalArrangement = Arrangement.SpaceBetween,
-           verticalAlignment = Alignment.CenterVertically
-       ) {
-           Column(modifier = Modifier.weight(1f)) {
-               Text(device.name ?: "Unknown device", style = MaterialTheme.typography.titleMedium)
-               Text(device.address, style = MaterialTheme.typography.bodySmall)
-           }
-           Column(horizontalAlignment = Alignment.End) {
-               Text("${device.rssi} dBm", style = MaterialTheme.typography.titleMedium)
-               Text(
-                   "${device.signal.label} · ${device.signal.distance}",
-                   style = MaterialTheme.typography.bodySmall,
-               )
-           }
-       }
-   }
-}
-
-@Composable
-private fun StatusMessage(
-    title: String,
-    message: String,
-    actionLabel: String? = null,
-    onAction: () -> Unit = {},
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    @Composable
+    private fun DeviceItem(
+        device: BleDevice,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(message, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-        if (actionLabel != null) {
-            Button(onClick = onAction) { Text(actionLabel) }
+        Card(
+            onClick = onClick,
+            modifier = modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        device.name ?: "Unknown device",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(device.address, style = MaterialTheme.typography.bodySmall)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${device.rssi} dBm", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${device.signal.label} · ${device.signal.distance}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
         }
     }
-}
+
+    @Composable
+    private fun StatusMessage(
+        title: String,
+        message: String,
+        actionLabel: String? = null,
+        onAction: () -> Unit = {},
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(message, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+            if (actionLabel != null) {
+                Button(onClick = onAction) { Text(actionLabel) }
+            }
+        }
+    }
