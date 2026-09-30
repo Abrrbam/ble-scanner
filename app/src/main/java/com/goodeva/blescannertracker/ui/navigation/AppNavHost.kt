@@ -1,9 +1,8 @@
 package com.goodeva.blescannertracker.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavArgument
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -34,7 +33,7 @@ fun AppNavHost(
             route = Routes.RADAR,
             arguments = listOf(navArgument(Routes.ARG_ADDRESS) { type = NavType.StringType})
         ) { entry ->
-            val address = entry.arguments?. getString(Routes.ARG_ADDRESS).orEmpty()
+            val address = Uri.decode(entry.arguments?. getString(Routes.ARG_ADDRESS).orEmpty())
             RadarScreen(address = address, onBack = { navController.popBackStack()})
 
         }

@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,6 +36,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.goodeva.blescannertracker.domain.model.BleDevice
 import com.goodeva.blescannertracker.ui.util.findActivity
 import com.goodeva.blescannertracker.ui.util.hasBleScanPermission
 
@@ -43,6 +48,13 @@ fun ScannerScreen(
 ){
     val context = LocalContext.current
     val bluetoothOn by viewModel.isBluetoothEnabled.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Hentikan scan saat App ke background agar menghemat baterai dan mengikuti "App Lifecycle"
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        val isRotating = context.findActivity()?.isChangingConfigurations == true
+        if (!isRotating) viewModel.stopScan()
+    }
 
     var hasPermission by remember { mutableStateOf(context.hasBleScanPermission()) }
     var permanentlyDenied by rememberSaveable { mutableStateOf(false)  }
@@ -119,14 +131,102 @@ fun ScannerScreen(
                 },
             )
 
-            else -> {
-                Text("Siap memindai ✅")
-                Button(onClick = { onDeviceClick("AA:BB:CC:DD:EE:FF") }) {
-                    Text("Dummy device → Radar")
+            else -> ScanContent(
+                state = uiState,
+                onStart = viewModel::startScan,
+                onStop = viewModel::stopScan,
+                onDeviceClick = onDeviceClick,
+                onDismissError = viewModel::dismissError,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ScanContent(
+    state: ScannerUiState,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onDeviceClick: (String) -> Unit,
+    onDismissError: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (state.isScanning) "Memindai... (${state.devices.size})"
+                else "Berhenti (${state.devices.size})"
+            )
+            if (state.isScanning) {
+                OutlinedButton(onClick = onStop) { Text("Stop") }
+            } else {
+                Button(onClick = onStart) { Text("Start") }
+            }
+        }
+
+        state.errorMessage?.let { message ->
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(start = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(message, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onDismissError) { Text("Tutup") }
+                }
+            }
+        }
+
+        if (state.devices.isEmpty()) {
+            Text(
+                if (state.isScanning) "Mencari perangkat..." else "Tekan Start untuk mulai memindai.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(state.devices, key = { it.address }) {
+                    device -> DeviceItem(device = device, onClick = { onDeviceClick(device.address) })
+
                 }
             }
         }
     }
+}
+
+@Composable
+fun DeviceItem(
+    device: BleDevice,
+    onClick: () -> Unit
+) {
+   Card(
+       onClick = onClick,
+       modifier = Modifier.fillMaxWidth()
+   ) {
+       Row(
+           modifier = Modifier.padding(12.dp),
+           horizontalArrangement = Arrangement.SpaceBetween,
+           verticalAlignment = Alignment.CenterVertically
+       ) {
+           Column(modifier = Modifier.weight(1f)) {
+               Text(device.name ?: "Unknown device", style = MaterialTheme.typography.titleMedium)
+               Text(device.address, style = MaterialTheme.typography.bodySmall)
+           }
+           Column(horizontalAlignment = Alignment.End) {
+               Text("${device.rssi} dBm", style = MaterialTheme.typography.titleMedium)
+               Text(
+                   "${device.signal.label} · ${device.signal.distance}",
+                   style = MaterialTheme.typography.bodySmall,
+               )
+           }
+       }
+   }
 }
 
 @Composable
