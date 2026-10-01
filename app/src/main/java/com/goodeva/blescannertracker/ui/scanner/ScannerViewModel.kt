@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.goodeva.blescannertracker.data.ble.BluetoothStateMonitor
+import com.goodeva.blescannertracker.domain.DeviceRepository
 import com.goodeva.blescannertracker.domain.model.BleDevice
 import com.goodeva.blescannertracker.domain.model.BleScanException
 import com.goodeva.blescannertracker.domain.model.BleScanner
@@ -21,11 +22,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 // Batas Android: maksimal 5 kali start scan dalam 30 detik
 private const val SCAN_WINDOW_MS = 30_000L
 private const val MAX_STARTS_PER_WINDOW = 5
 private const val LIST_REFRESH_MS = 1_000L
+private const val SAVE_INTERVAL_MS = 5_000L
 
 data class ScannerUiState(
     val isScanning: Boolean = false,
@@ -42,7 +45,8 @@ private data class ScanStatus(
 @HiltViewModel
 class ScannerViewModel @Inject constructor(
     monitor: BluetoothStateMonitor,
-    private val scanner: BleScanner
+    private val scanner: BleScanner,
+    private val repository: DeviceRepository,
 ) : ViewModel() {
     val isBluetoothSupported: Boolean = monitor.isSupported
 
@@ -106,18 +110,29 @@ class ScannerViewModel @Inject constructor(
 
         scanJob = viewModelScope.launch {
             var lastPublish = 0L
+            var lastSave = 0L
             scanner.scan()
                 .catch { e -> _status.update { it.copy(errorMessage = e.toUserMessage()) } }
                 .onCompletion {
-                    _devices.value = deviceMap.values.toList() // publish terakhir
+                    val snapshot = deviceMap.values.toList() // publish terakhir
+                    _devices.value = snapshot
+                    persist(snapshot) //simpan yang terakhir, termasuk saat distop/ Bt mati
                     _status.update { it.copy(isScanning = false) }
                 }
                 .collect { device ->
-                    deviceMap[device.address] = device
+                    // Paket tanpa nama tidak boleh menghapus nama yang sudah diketahui
+                    val merged = device.copy(name = device.name ?: deviceMap[device.address]?.name)
+                    deviceMap[merged.address] = merged
+
                     val t = SystemClock.elapsedRealtime()
                     if (t - lastPublish >= LIST_REFRESH_MS)
                         _devices.value = deviceMap.values.toList()
                         lastPublish = t
+
+                    if (t - lastSave >= SAVE_INTERVAL_MS) {
+                        persist(deviceMap.values.toList())
+                        lastSave = t
+                    }
                     }
                 }
         }
@@ -131,6 +146,21 @@ class ScannerViewModel @Inject constructor(
     fun onMinRssiChange(minRssi: Int) = _filter.update { it.copy(minRssi = minRssi) }
 
     fun dismissError() = _status.update { it.copy(errorMessage = null) }
+
+    // Berjalan di viewModelScope (bukan scanJob) agar tetap selesai walau scan dibatalkan.
+    // Gagal simpan tidak boleh membuat app crash.
+    private fun persist(devices: List<BleDevice>) {
+        if (devices.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                repository.save(devices)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Riwayat bersifat tambahan; scan tetap berjalan normal
+            }
+        }
+    }
 }
 
     private fun Throwable.toUserMessage(): String = when (this) {
