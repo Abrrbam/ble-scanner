@@ -1,5 +1,7 @@
 package com.goodeva.blescannertracker.ui.scanner
 
+import com.goodeva.blescannertracker.domain.DeviceFilter
+import com.goodeva.blescannertracker.domain.filterAndSort
 import com.goodeva.blescannertracker.domain.model.BleDevice
 import org.junit.Assert.assertEquals
 import org.junit.Test

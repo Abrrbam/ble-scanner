@@ -1,6 +1,6 @@
 package com.goodeva.blescannertracker.di
 
-import com.goodeva.blescannertracker.data.ble.repository.RoomDeviceRepository
+import com.goodeva.blescannertracker.data.repository.RoomDeviceRepository
 import com.goodeva.blescannertracker.domain.DeviceRepository
 import dagger.Binds
 import dagger.Module

@@ -1,4 +1,4 @@
-package com.goodeva.blescannertracker.data.ble.local
+package com.goodeva.blescannertracker.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

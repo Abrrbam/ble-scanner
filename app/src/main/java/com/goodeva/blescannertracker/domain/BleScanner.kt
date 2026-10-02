@@ -1,5 +1,6 @@
-package com.goodeva.blescannertracker.domain.model
+package com.goodeva.blescannertracker.domain
 
+import com.goodeva.blescannertracker.domain.model.BleDevice
 import kotlinx.coroutines.flow.Flow
 
 interface BleScanner {

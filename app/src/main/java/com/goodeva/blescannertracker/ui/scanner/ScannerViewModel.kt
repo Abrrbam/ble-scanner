@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.goodeva.blescannertracker.data.ble.BluetoothStateMonitor
 import com.goodeva.blescannertracker.domain.DeviceRepository
 import com.goodeva.blescannertracker.domain.model.BleDevice
-import com.goodeva.blescannertracker.domain.model.BleScanException
-import com.goodeva.blescannertracker.domain.model.BleScanner
+import com.goodeva.blescannertracker.domain.BleScanException
+import com.goodeva.blescannertracker.domain.BleScanner
+import com.goodeva.blescannertracker.domain.DeviceFilter
+import com.goodeva.blescannertracker.domain.filterAndSort
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow

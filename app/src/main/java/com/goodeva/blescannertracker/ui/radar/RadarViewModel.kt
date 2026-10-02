@@ -9,8 +9,8 @@ import com.goodeva.blescannertracker.data.ble.BluetoothStateMonitor
 import com.goodeva.blescannertracker.domain.RssiSnapshot
 import com.goodeva.blescannertracker.domain.RssiTracker
 import com.goodeva.blescannertracker.domain.model.BleDevice
-import com.goodeva.blescannertracker.domain.model.BleScanException
-import com.goodeva.blescannertracker.domain.model.BleScanner
+import com.goodeva.blescannertracker.domain.BleScanException
+import com.goodeva.blescannertracker.domain.BleScanner
 import com.goodeva.blescannertracker.domain.model.SignalCategory
 import com.goodeva.blescannertracker.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel

@@ -2,8 +2,8 @@ package com.goodeva.blescannertracker.di
 
 import android.content.Context
 import androidx.room.Room
-import com.goodeva.blescannertracker.data.ble.local.AppDatabase
-import com.goodeva.blescannertracker.data.ble.local.DeviceDao
+import com.goodeva.blescannertracker.data.local.AppDatabase
+import com.goodeva.blescannertracker.data.local.DeviceDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

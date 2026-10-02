@@ -38,6 +38,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.goodeva.blescannertracker.domain.DeviceFilter
+import com.goodeva.blescannertracker.domain.RSSI_FILTER_OFF
 import com.goodeva.blescannertracker.domain.model.BleDevice
 import com.goodeva.blescannertracker.ui.util.findActivity
 import com.goodeva.blescannertracker.ui.util.hasBleScanPermission

@@ -1,7 +1,7 @@
-package com.goodeva.blescannertracker.data.ble.repository
+package com.goodeva.blescannertracker.data.repository
 
-import com.goodeva.blescannertracker.data.ble.local.DeviceDao
-import com.goodeva.blescannertracker.data.ble.local.DeviceEntity
+import com.goodeva.blescannertracker.data.local.DeviceDao
+import com.goodeva.blescannertracker.data.local.DeviceEntity
 import com.goodeva.blescannertracker.domain.DeviceRepository
 import com.goodeva.blescannertracker.domain.model.BleDevice
 import kotlinx.coroutines.flow.Flow

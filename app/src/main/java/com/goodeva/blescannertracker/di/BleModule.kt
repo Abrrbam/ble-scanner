@@ -1,7 +1,7 @@
 package com.goodeva.blescannertracker.di
 
 import com.goodeva.blescannertracker.data.ble.AndroidBleScanner
-import com.goodeva.blescannertracker.domain.model.BleScanner
+import com.goodeva.blescannertracker.domain.BleScanner
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

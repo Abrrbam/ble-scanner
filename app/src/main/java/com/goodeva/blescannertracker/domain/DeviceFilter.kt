@@ -1,4 +1,4 @@
-package com.goodeva.blescannertracker.ui.scanner
+package com.goodeva.blescannertracker.domain
 
 import com.goodeva.blescannertracker.domain.model.BleDevice
 

@@ -7,8 +7,8 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import com.goodeva.blescannertracker.domain.model.BleDevice
-import com.goodeva.blescannertracker.domain.model.BleScanException
-import com.goodeva.blescannertracker.domain.model.BleScanner
+import com.goodeva.blescannertracker.domain.BleScanException
+import com.goodeva.blescannertracker.domain.BleScanner
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
