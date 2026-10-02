@@ -25,11 +25,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,7 +45,12 @@ import com.goodeva.blescannertracker.domain.RSSI_FILTER_OFF
 import com.goodeva.blescannertracker.domain.model.BleDevice
 import com.goodeva.blescannertracker.ui.util.findActivity
 import com.goodeva.blescannertracker.ui.util.hasBleScanPermission
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
+
+//
+private const val STALE_AFTER_SEC = 10L
 
 @Composable
 fun ScannerScreen(
@@ -162,6 +169,13 @@ private fun ScanContent(
     onQueryChange: (String) -> Unit,
     onMinRssiChange: (Int) -> Unit,
 ) {
+    val now by produceState(initialValue = System.currentTimeMillis()) {
+        while (true) {
+            delay(1_000.milliseconds)
+            value = System.currentTimeMillis()
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -239,6 +253,7 @@ private fun ScanContent(
                 items(state.devices, key = { it.address }) { device ->
                     DeviceItem(
                         device = device,
+                        now = now,
                         onClick = { onDeviceClick(device.address) },
                         modifier = Modifier.animateItem(),
                     )
@@ -250,12 +265,17 @@ private fun ScanContent(
     @Composable
     private fun DeviceItem(
         device: BleDevice,
+        now: Long,
         onClick: () -> Unit,
         modifier: Modifier = Modifier
     ) {
+
+        val ageSec = ((now - device.lastSeen) / 1000).coerceAtLeast(0)
+        val stale = ageSec >= STALE_AFTER_SEC
+
         Card(
             onClick = onClick,
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth().alpha(if (stale) 0.5f else 1f)
         ) {
             Row(
                 modifier = Modifier.padding(12.dp),
@@ -272,7 +292,8 @@ private fun ScanContent(
                 Column(horizontalAlignment = Alignment.End) {
                     Text("${device.rssi} dBm", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "${device.signal.label} · ${device.signal.distance}",
+                        if (stale) "Tidak terlihat $ageSec dtk"
+                        else "${device.signal.label} · ${device.signal.distance}",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
