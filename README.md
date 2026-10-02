@@ -25,7 +25,7 @@ Aplikasi Android (Kotlin + Jetpack Compose) untuk memindai perangkat Bluetooth L
 4. Pilih HP di daftar device, lalu tekan **Run**.
 5. Saat pertama dibuka, berikan izin **Perangkat di sekitar (Nearby devices)** dan pastikan Bluetooth menyala.
 
-**Build APK:** Build → Build Bundle(s) / APK(s) → Build APK(s). Hasilnya ada di `app/build/outputs/apk/debug/app-debug.apk`. APK siap pakai juga tersedia di halaman Releases repository ini.
+**Build APK:** Build → Generate App Bundles or APKs → Generate APKs. Hasilnya ada di `app/build/outputs/apk/debug/app-debug.apk`. APK siap pakai juga tersedia di halaman Releases repository ini.
 
 ## Arsitektur
 
