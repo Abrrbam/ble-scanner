@@ -9,5 +9,5 @@ object Routes {
     const val ARG_ADDRESS = "address"
     const val RADAR = "radar/{$ARG_ADDRESS}"
 
-    fun radar(address: String) = "radar/ ${Uri.encode(address)}"
+    fun radar(address: String) = "radar/${Uri.encode(address)}"
 }

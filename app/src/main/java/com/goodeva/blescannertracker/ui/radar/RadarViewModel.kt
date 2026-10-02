@@ -73,7 +73,7 @@ class RadarViewModel @Inject constructor(
 ) : ViewModel() {
 
     //Harus dideklarasikan sebelum uiState
-    private val address: String = Uri.decode(checkNotNull(savedStateHandle.get<String>(Routes.ARG_ADDRESS)))
+    private val address: String = Uri.decode(checkNotNull(savedStateHandle.get<String>(Routes.ARG_ADDRESS))).trim()
 
     val uiState: StateFlow<RadarUiState> = flow {
         val tracker = RssiTracker()
