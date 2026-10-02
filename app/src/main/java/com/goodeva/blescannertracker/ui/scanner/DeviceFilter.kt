@@ -19,7 +19,8 @@ fun List<BleDevice>.filterAndSort(filter: DeviceFilter): List<BleDevice> {
         .filter { device ->
             q.isEmpty() ||
                     device.name?.contains(q, ignoreCase = true) == true ||
-                    device.address.replace(":", "").contains(qMac, ignoreCase = true)
+                    (qMac.isNotEmpty() &&
+                        device.address.replace(":", "").contains(qMac, ignoreCase = true))
         }
         .sortedWith(compareByDescending<BleDevice> { it.rssi }.thenBy { it.address })
 }
