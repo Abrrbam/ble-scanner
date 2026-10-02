@@ -32,9 +32,8 @@ fun AppNavHost(
         composable(
             route = Routes.RADAR,
             arguments = listOf(navArgument(Routes.ARG_ADDRESS) { type = NavType.StringType})
-        ) { entry ->
-            val address = Uri.decode(entry.arguments?. getString(Routes.ARG_ADDRESS).orEmpty())
-            RadarScreen(address = address, onBack = { navController.popBackStack()})
+        ) {
+            RadarScreen(onBack = { navController.popBackStack()})
 
         }
         composable(Routes.HISTORY){
