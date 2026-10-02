@@ -4,7 +4,7 @@ Aplikasi Android (Kotlin + Jetpack Compose) untuk memindai perangkat Bluetooth L
 
 ## Fitur
 
-- **Scanner:** tombol Start/Stop manual, daftar perangkat real-time (nama, MAC address, RSSI mentah, kategori sinyal, estimasi jarak), urut otomatis dari sinyal terkuat, pencarian berdasarkan nama atau MAC, dan filter RSSI minimum.
+- **Scanner:** tombol Start/Stop manual, daftar perangkat real-time (nama, MAC address, RSSI mentah, kategori sinyal, estimasi jarak), urut otomatis dari sinyal terkuat, pencarian berdasarkan nama atau MAC, dan filter RSSI minimum. Perangkat yang tidak mengirim sinyal lebih dari 10 detik ditandai redup dengan keterangan "Tidak terlihat".
 - **Radar:** pelacakan satu perangkat dengan RSSI yang dihaluskan, visual radar yang berubah warna sesuai kategori sinyal, deteksi "Sinyal hilang", dan informasi stabilitas sinyal.
 - **History:** riwayat perangkat yang tersimpan di database lokal (Room) beserta waktu terakhir terdeteksi, tetap ada setelah aplikasi ditutup.
 
@@ -25,7 +25,7 @@ Aplikasi Android (Kotlin + Jetpack Compose) untuk memindai perangkat Bluetooth L
 4. Pilih HP di daftar device, lalu tekan **Run**.
 5. Saat pertama dibuka, berikan izin **Perangkat di sekitar (Nearby devices)** dan pastikan Bluetooth menyala.
 
-**Build APK:** Build → Generate App Bundles or APKs → Generate APKs. Hasilnya ada di `app/build/outputs/apk/debug/app-debug.apk`. APK siap pakai juga tersedia di halaman Releases repository ini.
+**Build APK:** Build → Generate App Bundles or APKs → Generate APKs. Hasilnya ada di `app/build/outputs/apk/debug/app-debug.apk`. APK siap pakai tersedia di halaman Releases repository ini. APK tersebut adalah build debug yang ditandatangani dengan debug key bawaan Android Studio, cukup untuk pengujian.
 
 ## Arsitektur
 
@@ -77,7 +77,7 @@ ViewModel hanya bergantung pada interface di `domain/`, sehingga implementasi BL
 - **Bluetooth mati:** dipantau lewat `BroadcastReceiver` yang dibungkus Flow. Scan dihentikan otomatis, layar menampilkan petunjuk. Di layar Radar, pelacakan lanjut otomatis begitu Bluetooth menyala lagi.
 - **Bluetooth tidak tersedia / scan gagal:** pesan error ditampilkan tanpa crash.
 - **Throttling scan:** Android membatasi 5 kali start scan per 30 detik dan membatasinya secara diam-diam. Pembatas dibuat di `ScannerViewModel` dan menampilkan pesan berapa detik harus menunggu.
-- **Background:** scan dihentikan saat aplikasi tidak terlihat (`ON_STOP`), kecuali pada perubahan konfigurasi.
+- **Background dan pindah layar:** scan di Scanner dihentikan saat layar tidak terlihat (`ON_STOP`), baik karena aplikasi ke background maupun karena pengguna membuka layar lain (misalnya Radar), kecuali pada perubahan konfigurasi. Setelah kembali, pengguna menekan Start lagi. Scan di Radar berhenti sekitar 5 detik setelah layar tidak terlihat.
 - **Rotasi layar:** scan dipegang ViewModel sehingga tidak putus. `StateFlow` memakai `WhileSubscribed(5000)`.
 - **Kegagalan penyimpanan** riwayat ditangkap supaya tidak menghentikan scan.
 
@@ -93,18 +93,24 @@ Unit test (JUnit) untuk logika murni:
 ./gradlew testDebugUnitTest
 ```
 
-Skenario uji manual (di perangkat fisik): izin ditolak dan dicabut, Bluetooth dimatikan saat scan dan saat Radar, rotasi layar, aplikasi ke background, dan riwayat tetap ada setelah aplikasi ditutup.
+**Uji manual di perangkat fisik** (Xiaomi 2201117TY, Android 13):
+
+- Diuji: permintaan dan penolakan izin (termasuk penolakan permanen), Bluetooth dimatikan saat scan, rotasi layar, aplikasi ke background, dan riwayat tetap ada setelah aplikasi ditutup.
+- Belum diuji pada rilis ini: pencabutan izin lewat pengaturan saat aplikasi berjalan, dan Bluetooth dimatikan saat berada di layar Radar.
+
+**Hasil uji dengan perangkat nyata (earbuds TWS):** layar Radar menerima paket dari perangkat target dan menampilkan kategori serta warna sesuai nilai sinyal. RSSI mentah berfluktuasi sekitar ±7 dBm (contoh pengamatan: -69 sampai -82 dBm), sedangkan RSSI halus (EMA) bergerak lebih stabil.
 
 ## Known issues
 
 - **MAC address acak.** Banyak perangkat memakai alamat BLE acak yang berganti berkala (dan bisa berbeda dari alamat Bluetooth Classic yang terlihat di pengaturan perangkat), sehingga perangkat yang sama dapat tercatat sebagai beberapa entri di riwayat.
-- **Hanya perangkat yang sedang beriklan (advertising).** Perangkat yang sudah tersambung ke perangkat lain (misalnya earbuds TWS yang terhubung ke HP) atau yang hanya mendukung Bluetooth Classic bisa tidak terdeteksi. Di layar Radar, perangkat seperti ini dapat tampil sebagai "Sinyal hilang". <Perbarui bagian ini setelah pengujian dengan perangkat lain>
+- **Hanya perangkat yang sedang beriklan (advertising).** Perangkat yang sudah tersambung ke perangkat lain atau yang hanya mendukung Bluetooth Classic bisa tidak terdeteksi. Pada pengujian dengan earbuds TWS, alamat BLE yang muncul berbeda dari alamat Bluetooth Classic di pengaturan perangkat, dan beberapa alamat baru muncul setiap kali case dibuka. Perangkat yang berhenti beriklan ditandai redup di daftar Scanner, dan memilihnya di Radar akan berakhir pada status "Sinyal hilang".
 - **Jarak hanya estimasi.** RSSI dipengaruhi hambatan (dinding, tubuh), orientasi antena, dan berbeda antar perangkat. Arah perangkat tidak dapat diketahui dari BLE, jadi posisi titik di radar hanya menunjukkan jarak.
 - **Perangkat yang jarang beriklan** (lebih dari 8 detik antar paket) dapat dianggap hilang oleh Radar. Batasnya dapat diubah lewat konstanta `LOST_TIMEOUT_MS`.
 - **Flag `neverForLocation`** dapat membuat sistem menyaring sebagian perangkat tertentu, misalnya beacon.
 - **Pembatas scan** hanya menghitung start dari layar Scanner. Scan di layar Radar tidak ikut dihitung, padahal Android menghitung keduanya.
+- **Scan Scanner berhenti saat membuka Radar** sehingga Start perlu ditekan lagi setelah kembali. Ini disengaja untuk menghemat baterai dan menghindari throttling.
 - **Database versi 1** tanpa skrip migrasi.
-- Hanya diuji di Android 13. Tampilan pada ukuran layar sangat kecil atau tablet belum dioptimalkan.
+- Hanya diuji di satu perangkat (Android 13). Tampilan pada ukuran layar sangat kecil atau tablet belum dioptimalkan.
 
 ## Kendala selama pengerjaan
 
@@ -114,3 +120,4 @@ Skenario uji manual (di perangkat fisik): izin ditolak dan dicabut, Bluetooth di
 - **Throttling scan Android tidak memberi error**, jadi pembatas dibuat sendiri.
 - **Daftar yang melompat** saat diurutkan tiap paket masuk, sehingga item sulit ditekan. Diatasi dengan menerbitkan daftar maksimal 1x per detik.
 - **RSSI berisik**, diatasi dengan smoothing EMA di Radar.
+- **Radar tidak pernah menemukan target** pada pengujian pertama dengan perangkat nyata. Penyebabnya spasi tersembunyi di awal argumen route sehingga alamat target tidak pernah sama dengan alamat dari hasil scan. Log menunjukkan paket target sebenarnya diterima, tetapi dibuang oleh filter. Diperbaiki dengan menghapus spasi di sumbernya dan menambah `trim()` serta perbandingan tanpa peka huruf besar/kecil sebagai pengaman.
